@@ -27,7 +27,7 @@ import re
 import textwrap
 from collections import OrderedDict, defaultdict
 from shutil import get_terminal_size
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Tuple, Set
 
 import pytz
 from click import confirm, echo, prompt, style
@@ -111,7 +111,7 @@ def calendar(
     except ValueError as error:
         raise FatalError(error)
 
-    event_column = khal_list(
+    event_column, url_set = khal_list(
         collection,
         daterange,
         conf=conf,
@@ -140,7 +140,7 @@ def calendar(
         highlight_event_days=highlight_event_days,
         locale=locale,
         bold_for_light_color=bold_for_light_color)
-    return merge_columns(calendar_column, event_column, width=lwidth)
+    return (merge_columns(calendar_column, event_column, width=lwidth), url_set)
 
 
 def start_end_from_daterange(
@@ -179,7 +179,7 @@ def get_events_between(
     original_start: dt.datetime,
     seen=None,
     colors: bool = True,
-) -> List[str]:
+) -> Tuple[List[str], List[str]]:
     """returns a list of events scheduled between start and end. Start and end
     are strings or datetimes (of some kind).
 
@@ -212,6 +212,9 @@ def get_events_between(
     events = sorted(collection.get_localized(start_local, end_local))
     events_float = sorted(collection.get_floating(start, end))
     events = sorted(events + events_float)
+
+    url_set = []
+
     for event in events:
         # yes the logic could be simplified, but I believe it's easier
         # to understand what's going on here this way
@@ -232,7 +235,10 @@ def get_events_between(
         if seen is not None:
             seen.add(event.uid)
 
-    return formatter(event_list)
+        for url in event_attributes['url-set']:
+            url_set.append(url)
+
+    return (formatter(event_list), url_set)
 
 
 def khal_list(
@@ -260,7 +266,7 @@ def khal_list(
         formatter = json_formatter(json)
         colors = False
     else:
-        formatter = human_formatter(agenda_format, width)
+        formatter = human_formatter(agenda_format, width, indent=1)
         colors = True
 
     if daterange is not None:
@@ -300,19 +306,25 @@ def khal_list(
     if env is None:
         env = {}
 
+    final_urlset = []
+
     original_start = conf['locale']['local_timezone'].localize(start)
     while start < end:
         if start.date() == end.date():
             day_end = end
         else:
             day_end = dt.datetime.combine(start.date(), dt.time.max)
-        current_events = get_events_between(
+        
+        current_events, url_set = get_events_between(
             collection, locale=conf['locale'], formatter=formatter, start=start,
             end=day_end, notstarted=notstarted, original_start=original_start,
             env=env,
             seen=once,
             colors=colors,
         )
+
+        final_urlset.extend(url_set)
+
         if day_format and (conf['default']['show_all_days'] or current_events) and not json:
             if len(event_column) != 0 and conf['view']['blank_line_before_day']:
                 event_column.append('')
@@ -320,7 +332,8 @@ def khal_list(
         event_column.extend(current_events)
         start = dt.datetime(*start.date().timetuple()[:3]) + dt.timedelta(days=1)
 
-    return event_column
+
+    return (event_column, final_urlset)
 
 
 def new_interactive(collection, calendar_name, conf, info, location=None,

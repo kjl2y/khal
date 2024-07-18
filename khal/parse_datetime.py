@@ -227,8 +227,8 @@ def guessdatetimefstr(
     all_day: bool
     infer_year: bool
     for fun, dtformat, all_day, infer_year in [
-            (datefstr_year, locale['datetimeformat'], False, True),
             (datefstr_year, locale['longdatetimeformat'], False, False),
+            (datefstr_year, locale['datetimeformat'], False, True),
             (timefstr_day, locale['timeformat'], False, False),
             (datetimefstr_weekday, locale['timeformat'], False, False),
             (datefstr_year, locale['dateformat'], True, True),
@@ -246,6 +246,7 @@ def guessdatetimefstr(
         else:
             return dtstart, all_day
     raise DateTimeParseError(
+        f"guessdatetimefstr\n"
         f"Could not parse \"{dtime_list}\".\nPlease check your configuration "
         "or run `khal printformats` to see if this does match your configured "
         "[long](date|time|datetime)format.\nIf you suspect a bug, please "
@@ -412,6 +413,7 @@ def guessrangefstr(daterange: Union[str, List[str]],
             pass
 
     raise DateTimeParseError(
+        f"guessrangefstr\n"
         f"Could not parse \"{daterange}\".\nPlease check your configuration or "
         "run `khal printformats` to see if this does match your configured "
         "[long](date|time|datetime)format.\nIf you suspect a bug, please "
@@ -474,7 +476,14 @@ def eventinfofstr(info_string: str,
         if start is not None and end is not None:
             try:
                 # next element is a valid Olson db timezone string
-                tz = pytz.timezone(parts[i])
+                potential_tz = parts[i]
+                if potential_tz == 'CT':
+                    potential_tz = 'America/Chicago'
+                elif potential_tz == 'ET':
+                    potential_tz = 'America/New_York'
+                elif potential_tz == 'PT':
+                    potential_tz = 'America/Los_Angeles'
+                tz = pytz.timezone(potential_tz)
                 i += 1
             except (pytz.UnknownTimeZoneError, UnicodeDecodeError, IndexError):
                 tz = None
@@ -483,6 +492,7 @@ def eventinfofstr(info_string: str,
 
     if start is None or end is None:
         raise DateTimeParseError(
+            f"eventinfofstr\n"
             f"Could not parse \"{info_string}\".\nPlease check your "
             "configuration or run `khal printformats` to see if this does "
             "match your configured [long](date|time|datetime)format.\nIf you "

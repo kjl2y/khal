@@ -392,6 +392,8 @@ class CalendarCollection:
         does not check for readonly"""
         event, etag = self._storages[calendar].get(href)
         try:
+            # kjl2y was debugging
+            #print(event.raw)
             if self._calendars[calendar].get('ctype') == 'birthdays':
                 update = self._backend.update_vcf_dates
             else:

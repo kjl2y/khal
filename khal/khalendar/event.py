@@ -25,7 +25,7 @@ helper functions."""
 import datetime as dt
 import logging
 import os
-from typing import Callable, Dict, List, Optional, Tuple, Type, Union
+from typing import Callable, Dict, List, Optional, Tuple, Type, Union, Set
 
 import icalendar
 import icalendar.cal
@@ -41,6 +41,12 @@ from ..parse_datetime import timedelta2str
 from ..plugins import FORMATTERS
 from ..utils import generate_random_uid, is_aware, to_naive_utc, to_unix_time
 
+
+from ..rs3 import rewrite_urls, shorten_invite, extract_urls
+
+
+
+_link_counter = 1
 logger = logging.getLogger('khal')
 
 
@@ -70,6 +76,7 @@ class Event:
                  start: Optional[dt.datetime] = None,
                  end: Optional[dt.datetime] = None,
                  addresses: Optional[List[str]] =None,
+                 urls: Optional[Set[str]] = None,
                  ):
         """
         :param start: start datetime of this event instance
@@ -90,6 +97,7 @@ class Event:
         self._start: dt.datetime
         self._end: dt.datetime
         self.addresses = addresses if addresses else []
+        self.urls = urls if urls else set()
 
         if start is None:
             self._start = self._vevents[self.ref]['DTSTART'].dt
@@ -134,7 +142,15 @@ class Event:
         assert isinstance(events_list, list)
 
         vevents = {}
+
+        # kjl2y: for some event sequences that are recurring, it seems
+        # that the DESCRIPTION is present in the first vevent in the
+        # sequence, but does not appear later... let's optionally carry
+        # forward the latest description to all the subsequent events...
+        carry_forward_description = ""
+
         for event in events_list:
+                
             if 'RECURRENCE-ID' in event:
                 if invalid_timezone(event['RECURRENCE-ID']):
                     default_timezone = kwargs['locale']['default_timezone']
@@ -145,6 +161,13 @@ class Event:
                 vevents[ident] = event
             else:
                 vevents['PROTO'] = event
+
+            if 'DESCRIPTION' in event:
+                carry_forward_description = event['DESCRIPTION']
+            else:
+                event['DESCRIPTION'] = carry_forward_description
+
+            
 
         if ref is None:
             ref = 'PROTO' if ref in vevents.keys() else list(vevents.keys())[0]
@@ -158,6 +181,7 @@ class Event:
             instcls = cls._get_type_from_date(start)
         else:
             instcls = cls._get_type_from_vDDD(vevents[ref]['DTSTART'])
+        
         return instcls(vevents, ref=ref, start=start, **kwargs)
 
     @classmethod
@@ -543,7 +567,22 @@ class Event:
 
     @property
     def description(self) -> str:
-        return self._vevents[self.ref].get('DESCRIPTION', '')
+        global _link_counter
+#        print(self._vevents[self.ref])
+        data = self._vevents[self.ref].get('DESCRIPTION', '')
+        data = rewrite_urls(data) 
+
+        if len(data) > 50:
+            tmp = shorten_invite(data)
+            if tmp != False:
+                data = tmp
+
+        # build a set of URLs present in the description for later use
+        self.urls, data = extract_urls(data, _link_counter)
+        _link_counter += len(self.urls)
+
+        #return self._vevents[self.ref].get('DESCRIPTION', '')
+        return data
 
     def update_description(self, description: str):
         if description:
@@ -772,6 +811,10 @@ class Event:
 
         attributes['status'] = self.status + ' ' if self.status else ''
         attributes['cancelled'] = 'CANCELLED ' if self.status == 'CANCELLED' else ''
+
+
+        attributes['url-set'] = self.urls # extract_urls(self.description)
+
         return attributes
 
     def duplicate(self) -> 'Event':

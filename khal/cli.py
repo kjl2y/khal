@@ -125,7 +125,7 @@ def calendar(ctx, include_calendar, exclude_calendar, daterange, once,
              notstarted, format, day_format):
     '''Print calendar with agenda.'''
     try:
-        rows = controllers.calendar(
+        rows, url_set = controllers.calendar(
             build_collection(
                 ctx.obj['conf'],
                 multi_calendar_select(ctx, include_calendar, exclude_calendar)
@@ -150,6 +150,8 @@ def calendar(ctx, include_calendar, exclude_calendar, daterange, once,
             env={"calendars": ctx.obj['conf']['calendars']}
         )
         click.echo('\n'.join(rows))
+        click.echo('\nURLs:')
+        click.echo('\n'.join(url_set))
     except FatalError as error:
         logger.debug(error, exc_info=True)
         logger.fatal(error)
@@ -179,7 +181,7 @@ def klist(ctx, include_calendar, exclude_calendar,
    # TODO: register user given format string as a plugin
     logger.debug(f'{enabled_eventformatters}')
     try:
-        event_column = controllers.khal_list(
+        event_column, url_set = controllers.khal_list(
             build_collection(
                 ctx.obj['conf'],
                 multi_calendar_select(ctx, include_calendar, exclude_calendar)
@@ -532,7 +534,7 @@ def at(ctx, datetime, notstarted, format, day_format, json, include_calendar, ex
     if format is None:
         format = ctx.obj['conf']['view']['event_format']
     try:
-        rows = controllers.khal_list(
+        rows, url_set = controllers.khal_list(
             build_collection(
                 ctx.obj['conf'],
                 multi_calendar_select(ctx, include_calendar, exclude_calendar)

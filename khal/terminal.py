@@ -150,4 +150,4 @@ def merge_columns(lcolumn: List[str], rcolumn: List[str], width: int=25) -> List
     if missing > 0:
         lcolumn = lcolumn + missing * [width * ' ']
 
-    return ['    '.join(one) for one in zip_longest(lcolumn, rcolumn, fillvalue='')]
+    return ['  '.join(one) for one in zip_longest(lcolumn, rcolumn, fillvalue='')]

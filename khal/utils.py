@@ -85,7 +85,7 @@ def find_unmatched_sgr(string: str) -> Optional[str]:
         return None
 
 
-def color_wrap(text: str, width: int = 70) -> List[str]:
+def color_wrap(text: str, width: int = 70, indent: int = 0) -> List[str]:
     """A variant of wrap that takes SGR codes (somewhat) into account.
 
     This doesn't actually adjust the length, but makes sure that
@@ -93,13 +93,22 @@ def color_wrap(text: str, width: int = 70) -> List[str]:
     that code to the next line
     """
     # TODO we really want to ignore all SGR codes when measuring the width
-    lines = wrap(text, width)
+    lines = wrap(
+        text, 
+        width, 
+        initial_indent=' ' *indent, 
+        subsequent_indent=' ' * (indent+1)
+    )
+#    lines = [ indent * ' ' + line for line in lines]
+
+        
+
     for num, _ in enumerate(lines):
         sgr = find_unmatched_sgr(lines[num])
         if sgr is not None:
             lines[num] += RESET
             if (num + 1) < len(lines):
-                lines[num + 1] = sgr + lines[num + 1]
+                lines[num + 1] = indent * ' ' + sgr + lines[num + 1]
     return lines
 
 
@@ -188,7 +197,7 @@ def get_wrapped_text(widget: urwid.AttrMap) -> str:
     return widget.original_widget.get_edit_text()
 
 
-def human_formatter(format_string, width=None, colors=True):
+def human_formatter(format_string, width=None, colors=True, indent=0):
     """Create a formatter that formats events to be human readable."""
     def fmt(rows):
         single = isinstance(rows, dict)
@@ -205,7 +214,7 @@ def human_formatter(format_string, width=None, colors=True):
                 s += style('', reset=True)
 
             if width:
-                results += color_wrap(s, width)
+                results += color_wrap(s, width, indent)
             else:
                 results.append(s)
         if single:
