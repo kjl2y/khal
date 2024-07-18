@@ -47,12 +47,12 @@ class ShortUrlCfg:
 cfg = ShortUrlCfg()
 
 # load config
-with open("config.yaml") as f:
-    config = yaml.load(f)
-    cfg.URL_CREATE_ENDPOINT = config.short_url_create_endpoint
-    cfg.URL_AUTHORIZATION = config.short_url_create_authorization
-    cfg.URL_SHORTEN_PREFIX = config.short_url_prefix
-    cfg.URL_SHORTEN_ENDPOINT = config.short_url_endpoint
+with open(os.path.join( os.path.expanduser('~'), '.rs3cfg' )) as f:
+    config = yaml.unsafe_load(f)
+    cfg.URL_CREATE_ENDPOINT  = config['short_url_create_endpoint']
+    cfg.URL_AUTHORIZATION    = config['short_url_create_authorization']
+    cfg.URL_SHORTEN_PREFIX   = config['short_url_prefix']
+    cfg.URL_SHORTEN_ENDPOINT = config['short_url_endpoint']
 
 
 # map original url to URL_SHORTEN_PREFIX url
