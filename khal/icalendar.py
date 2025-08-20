@@ -37,6 +37,7 @@ from .utils import generate_random_uid, localize_strip_tz, str2alarm, to_unix_ti
 
 logger = logging.getLogger('khal')
 
+icalendar.use_pytz()
 
 def split_ics(ics: str, random_uid: bool=False, default_timezone=None) -> List:
     """split an ics string into several according to VEVENT's UIDs
